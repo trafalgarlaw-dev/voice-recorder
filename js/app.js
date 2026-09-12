@@ -894,5 +894,75 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Handle #import= or ?audio= in URL (Automatic Shortcut / Link Import)
+  async function checkUrlImport() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // 1. Audio URL import (?audio=...)
+    if (urlParams.has('audio')) {
+      const audioUrl = urlParams.get('audio');
+      try {
+        showToast('Ses indiriliyor ve çözümleniyor...', '⏳');
+        const res = await fetch(audioUrl);
+        const blob = await res.blob();
+        history.replaceState(null, '', window.location.pathname);
+        await processAndSaveAudio(blob, 60000, blob.type || 'audio/mp4', 'Kestirme Ses Kaydı');
+        return;
+      } catch (e) {
+        console.warn('Audio URL fetch error:', e);
+      }
+    }
+
+    // 2. Pre-analyzed JSON import via hash #import=...
+    if (window.location.hash && window.location.hash.startsWith('#import=')) {
+      try {
+        const rawHash = window.location.hash.substring(8);
+        const jsonStr = decodeURIComponent(rawHash);
+        let parsed = JSON.parse(jsonStr);
+
+        let aiResult = parsed;
+        if (parsed.candidates?.[0]?.content?.parts?.[0]?.text) {
+          const rawText = parsed.candidates[0].content.parts[0].text;
+          const cleaned = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          aiResult = JSON.parse(cleaned);
+        }
+
+        const recId = 'rec-' + Date.now();
+        const defaultTitle = aiResult.title || `Kestirme Kaydı (${new Date().toLocaleDateString('tr-TR', { hour: '2-digit', minute: '2-digit' })})`;
+
+        const newRecord = {
+          id: recId,
+          title: defaultTitle,
+          createdAt: new Date().toISOString(),
+          durationMs: aiResult.durationMs || (aiResult.segments?.length ? Math.round(aiResult.segments[aiResult.segments.length - 1].endTime * 1000) : 60000),
+          audioBlob: null,
+          speakers: aiResult.speakers || [{ id: 'spk-1', name: 'Konuşmacı 1', avatarColor: '#0a84ff' }],
+          summary: aiResult.summary || 'Özet oluşturuldu.',
+          decisions: aiResult.decisions || [],
+          actionItems: aiResult.actionItems || [],
+          segments: aiResult.segments || [],
+          status: 'completed',
+          chatHistory: [
+            {
+              sender: 'ai',
+              text: `Merhaba! "${defaultTitle}" kaydı incelendi (${(aiResult.speakers || []).length} konuşmacı ayrıştırıldı). Kayıtla ilgili dilediğinizi sorabilirsiniz.`,
+              timestamp: '00:00'
+            }
+          ]
+        };
+
+        await storage.saveRecording(newRecord);
+        showToast('Kestirmeden gelen kayıt başarıyla yüklendi!', '🎉');
+        history.replaceState(null, '', window.location.pathname);
+        await renderRecordingsList();
+        openRecordingDetail(recId);
+      } catch (err) {
+        console.error('Import error:', err);
+        showToast('Kayıt aktarılırken hata: ' + err.message, '⚠️');
+      }
+    }
+  }
+
+  await checkUrlImport();
   await renderRecordingsList();
 });
