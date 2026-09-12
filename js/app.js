@@ -185,8 +185,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 
+  // Pocket Mode & Background Audio
+  const pocketModeBtn = document.getElementById('pocketModeBtn');
+  const pocketModeOverlay = document.getElementById('pocketModeOverlay');
+  const pocketTimerDisplay = document.getElementById('pocketTimerDisplay');
+  const silentBackgroundAudio = document.getElementById('silentBackgroundAudio');
+
   recorder.onTick = (ms) => {
-    timerDisplay.innerText = AudioRecorder.formatTime(ms);
+    const formatted = AudioRecorder.formatTime(ms);
+    timerDisplay.innerText = formatted;
+    if (pocketTimerDisplay) pocketTimerDisplay.innerText = formatted;
   };
 
   recorder.onStateChange = (state) => {
@@ -199,6 +207,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       cancelRecordBtn.disabled = false;
       pauseIcon.style.display = 'block';
       resumeIcon.style.display = 'none';
+      if (pocketModeBtn) pocketModeBtn.style.display = 'inline-flex';
+      if (silentBackgroundAudio) silentBackgroundAudio.play().catch(() => {});
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: 'Ses Kaydı Devam Ediyor',
+          artist: 'AI Voice Recorder',
+          album: 'Arka Plan Kaydı'
+        });
+      }
     } else if (state === 'paused') {
       pulsingDot.style.display = 'none';
       recordingStatusText.innerText = 'Kayıt Duraklatıldı';
@@ -212,8 +229,37 @@ document.addEventListener('DOMContentLoaded', async () => {
       visualizerPlaceholder.style.display = 'block';
       pauseResumeBtn.disabled = true;
       cancelRecordBtn.disabled = true;
+      if (pocketModeBtn) pocketModeBtn.style.display = 'none';
+      if (pocketModeOverlay) pocketModeOverlay.style.display = 'none';
+      if (silentBackgroundAudio) {
+        try {
+          silentBackgroundAudio.pause();
+          silentBackgroundAudio.currentTime = 0;
+        } catch (e) {}
+      }
     }
   };
+
+  if (pocketModeBtn) {
+    pocketModeBtn.addEventListener('click', () => {
+      if (pocketModeOverlay) {
+        pocketModeOverlay.style.display = 'flex';
+        showToast('Cep Modu Aktif (Piller korunuyor)', '🌙');
+      }
+    });
+  }
+
+  if (pocketModeOverlay) {
+    let lastTap = 0;
+    pocketModeOverlay.addEventListener('click', () => {
+      const now = Date.now();
+      if (now - lastTap < 450) {
+        pocketModeOverlay.style.display = 'none';
+        showToast('Cep Modu Kapatıldı', '☀️');
+      }
+      lastTap = now;
+    });
+  }
 
   // Record Button Click
   recordBtnMain.addEventListener('click', async () => {

@@ -112,6 +112,12 @@
           </button>
         </div>
 
+        <!-- Pocket Mode Button (OLED Battery Saver & Lock) -->
+        <button id="pocketModeBtn" type="button" style="display: none; margin: 12px auto 6px auto; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); color: #fff; border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; align-items: center; gap: 6px;">
+          <span>🌙</span>
+          <span>Cep Modu (Ekranı Karart & Koru)</span>
+        </button>
+
         <!-- Audio Upload Option -->
         <label class="upload-option" for="fileUploadInput">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -360,10 +366,10 @@
   </div>
 
   <!-- Scripts -->
-  <script src="js/audio-recorder.js?v=20260912_3"></script>
-  <script src="js/storage.js?v=20260912_3"></script>
-  <script src="js/ai-engine.js?v=20260912_3"></script>
-  <script src="js/app.js?v=20260912_3"></script>
+  <script src="js/audio-recorder.js?v=20260912_4"></script>
+  <script src="js/storage.js?v=20260912_4"></script>
+  <script src="js/ai-engine.js?v=20260912_4"></script>
+  <script src="js/app.js?v=20260912_4"></script>
 
   <!-- Reanalyze Modal -->
   <div id="reanalyzeModal" class="modal-overlay">
@@ -389,6 +395,21 @@
 
       <button id="startReanalyzeBtn" class="btn-primary">Seçilen Modelle Şimdi Çöz</button>
       <button id="closeReanalyzeBtn" class="btn-secondary">İptal</button>
+    </div>
+  </div>
+
+  <!-- Silent background audio loop to keep audio session active -->
+  <audio id="silentBackgroundAudio" loop playsinline preload="auto" src="data:audio/wav;base64,UklGRigAAABXQVZFRm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"></audio>
+
+  <!-- OLED Pocket Mode Overlay (Battery Saver & Pocket Lock) -->
+  <div id="pocketModeOverlay" style="display: none; position: fixed; inset: 0; background: #000000; z-index: 99999; flex-direction: column; align-items: center; justify-content: center; user-select: none; touch-action: manipulation; text-align: center; padding: 20px;">
+    <div style="font-size: 13px; color: rgba(255, 255, 255, 0.4); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ff453a; box-shadow: 0 0 8px #ff453a;"></span>
+      <span>Ortam Kaydediliyor (Cep Modu)</span>
+    </div>
+    <div id="pocketTimerDisplay" style="font-size: 52px; font-weight: 200; color: rgba(255, 255, 255, 0.85); font-variant-numeric: tabular-nums; letter-spacing: 2px;">00:00.00</div>
+    <div style="font-size: 12px; color: rgba(255, 255, 255, 0.35); margin-top: 36px; border: 1px solid rgba(255,255,255,0.15); border-radius: 24px; padding: 8px 20px;">
+      🔒 Çıkmak için ekrana iki kez dokunun
     </div>
   </div>
 
