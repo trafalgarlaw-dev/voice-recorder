@@ -76,9 +76,10 @@ class AudioRecorder {
       this.source.connect(this.analyser);
 
       // Direct raw PCM recording via ScriptProcessorNode
-      // Captures 100% of raw microphone sound without browser voice cuts
+      // Bind to window to prevent iOS WebKit Garbage Collector from prematurely pausing onaudioprocess
       const bufferSize = 4096;
       this.processor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
+      window._activeAudioProcessor = this.processor;
       this.processor.onaudioprocess = (e) => {
         if (!this.isRecording || this.isPaused) return;
         const inputData = e.inputBuffer.getChannelData(0);
@@ -169,6 +170,7 @@ class AudioRecorder {
       if (this.processor) {
         this.processor.disconnect();
         this.processor = null;
+        window._activeAudioProcessor = null;
       }
 
       // Convert raw PCM chunks to standard 16kHz mono WAV Blob (perfect for Gemini)

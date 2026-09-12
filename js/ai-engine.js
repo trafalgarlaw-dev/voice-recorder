@@ -116,6 +116,10 @@ AKUSTİK VE DİYARİZASYON (SPEAKER DIARIZATION) KURALLARI:
 4. EKSİKSİZ VE KELİMESİ KELİMESİNE DÖKÜM (VERBATIM):
    - Ses kısıldığında, fısıldandığında veya hızlı konuşulduğunda dahi hiçbir kelimeyi atlama.
 
+5. TÜM KAYDI BAŞINDAN SON SANİYESİNE KADAR DÖK (ERKEN DURMA YASAKTIR):
+   - Kaydın 1. dakikasında, 5. dakikasında veya 15. dakikasında konuşulanları asla yarıda bırakma veya atlama.
+   - Ses kaydının bittiği son saniyeye kadar olan bütün konuşmaları segments dizisine ekle.
+
 ÇIKTI FORMATI:
 SADECE aşağıdaki geçerli JSON formatında yanıt ver (asla markdown backtick kullanma):
 {
@@ -160,6 +164,7 @@ SADECE aşağıdaki geçerli JSON formatında yanıt ver (asla markdown backtick
       ],
       generationConfig: {
         temperature: 0.1,
+        maxOutputTokens: 8192,
         responseMimeType: 'application/json'
       }
     };
