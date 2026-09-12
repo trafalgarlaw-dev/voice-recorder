@@ -227,8 +227,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       recordingStatusText.innerText = 'Yapay Zeka Ses Kaydını İnceliyor...';
       const result = await recorder.stop();
-      if (result) {
-        await processAndSaveAudio(result.wavBlob, result.durationMs, result.playbackBlob, null);
+      if (result && result.audioBlob) {
+        await processAndSaveAudio(result.audioBlob, result.durationMs, result.mimeType, null);
       }
     }
   });
@@ -257,13 +257,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     tempAudio.src = URL.createObjectURL(file);
     tempAudio.onloadedmetadata = async () => {
       const durationMs = Math.round(tempAudio.duration * 1000) || 60000;
-      await processAndSaveAudio(file, durationMs, [], file.name);
+      await processAndSaveAudio(file, durationMs, file.type || 'audio/mp4', file.name);
       fileUploadInput.value = '';
     };
   });
 
   // Process & Save
-  async function processAndSaveAudio(wavBlob, durationMs, playbackBlob = null, customTitle = null) {
+  async function processAndSaveAudio(audioBlob, durationMs, mimeType = null, customTitle = null) {
     const recId = 'rec-' + Date.now();
     const defaultTitle = customTitle ? customTitle.replace(/\.[^/.]+$/, '') : `Ses Kaydı (${new Date().toLocaleDateString('tr-TR', { hour: '2-digit', minute: '2-digit' })})`;
 
@@ -274,8 +274,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       title: defaultTitle,
       createdAt: new Date().toISOString(),
       durationMs: durationMs,
-      audioBlob: wavBlob, // Master 16kHz PCM WAV
-      playbackBlob: playbackBlob || wavBlob,
+      audioBlob: audioBlob, // Native high-fidelity audio blob
+      mimeType: mimeType || audioBlob.type || 'audio/mp4',
       speakers: [{ id: 'spk-1', name: 'Konuşmacı 1', avatarColor: '#0a84ff' }],
       summary: 'Ses kaydı cihazınıza güvenle kaydedildi. Çözümleme yapılıyor...',
       decisions: [],
@@ -298,7 +298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       // 2. Otomatik çözümlemeyi başlat (doğal akustik tespit)
-      const aiResult = await aiEngine.processAudioRecording(wavBlob, durationMs);
+      const aiResult = await aiEngine.processAudioRecording(audioBlob, durationMs);
 
       initialRecord.title = customTitle ? defaultTitle : (aiResult.title || defaultTitle);
       initialRecord.summary = aiResult.summary || 'Özet oluşturuldu.';
@@ -400,6 +400,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (data.audioBlob) {
       nativeAudioPlayer.src = URL.createObjectURL(data.audioBlob);
+      nativeAudioPlayer.onloadedmetadata = () => {
+        if (isFinite(nativeAudioPlayer.duration) && nativeAudioPlayer.duration > 0) {
+          const exactSec = Math.round(nativeAudioPlayer.duration);
+          audioScrubber.max = exactSec;
+          totalDurationDisplay.innerText = formatSec(exactSec);
+        }
+      };
     } else {
       nativeAudioPlayer.src = '';
     }

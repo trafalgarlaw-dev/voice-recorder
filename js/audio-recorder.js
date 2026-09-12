@@ -1,6 +1,7 @@
 /**
- * AudioRecorder: High-Fidelity Audio Capture with Direct 16kHz PCM WAV Export
- * Solves iOS Safari speech truncation and ensures 100% verbatim audio delivery to Gemini AI.
+ * AudioRecorder: High-Fidelity Audio Capture with Native MediaRecorder & Screen WakeLock
+ * Fully supports long-duration recording (minutes/hours) on iOS Safari, Android, and Desktop.
+ * Prevents screen auto-lock sleep and eliminates WebKit ScriptProcessor truncation bugs.
  */
 class AudioRecorder {
   constructor(canvasElement) {
@@ -11,15 +12,15 @@ class AudioRecorder {
     this.analyser = null;
     this.source = null;
     this.stream = null;
-    this.processor = null;
     this.animationId = null;
     this.recordedChunks = [];
-    this.pcmDataChunks = []; // Raw PCM float samples
     this.startTime = null;
     this.elapsedTime = 0;
     this.timerInterval = null;
     this.isRecording = false;
     this.isPaused = false;
+    this.wakeLock = null;
+    this.recordedMimeType = 'audio/mp4';
     this.onTick = null;
     this.onStateChange = null;
 
@@ -27,6 +28,13 @@ class AudioRecorder {
       this.setupCanvas();
       this.drawIdleWave();
     }
+
+    // Re-acquire WakeLock if user switches back to Safari while recording
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible' && this.isRecording && !this.wakeLock) {
+        await this.requestWakeLock();
+      }
+    });
   }
 
   setupCanvas() {
@@ -39,20 +47,43 @@ class AudioRecorder {
     this.displayHeight = rect.height || 110;
   }
 
+  async requestWakeLock() {
+    if ('wakeLock' in navigator && navigator.wakeLock) {
+      try {
+        this.wakeLock = await navigator.wakeLock.request('screen');
+        console.log('Screen WakeLock active: recording will not be interrupted by screen sleep');
+        this.wakeLock.addEventListener('release', () => {
+          this.wakeLock = null;
+        });
+      } catch (e) {
+        console.warn('WakeLock not granted:', e);
+      }
+    }
+  }
+
+  async releaseWakeLock() {
+    if (this.wakeLock) {
+      try {
+        await this.wakeLock.release();
+      } catch (e) {}
+      this.wakeLock = null;
+    }
+  }
+
   async start() {
     try {
       this.recordedChunks = [];
-      this.pcmDataChunks = [];
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
           const httpsUrl = `https://${location.hostname}:8443${location.pathname}`;
-          throw new Error(`iOS Safari mikrofon izni için HTTPS gerektirir.\nLütfen güvenli bağlantıya geçin: ${httpsUrl}`);
+          throw new Error(`iOS Safari mikrofon izni için HTTPS gerektirir.
+Lütfen güvenli bağlantıya geçin: ${httpsUrl}`);
         }
         throw new Error('Tarayıcınız mikrofon kaydını desteklemiyor veya izin verilmedi.');
       }
 
-      // Voice settings: do not suppress other speakers in the room
+      // Voice settings: preserve all voices in the room, disable artificial noise cancelling
       const constraints = {
         audio: {
           echoCancellation: false,
@@ -63,55 +94,59 @@ class AudioRecorder {
       };
 
       this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // Ensure audio context is running on iOS Safari
-      if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
+
+      // Keep screen awake while recording so iOS doesn't sleep at 30 seconds
+      await this.requestWakeLock();
+
+      // AudioContext ONLY for real-time waveform visualizer (NOT connected to destination)
+      try {
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.audioContext.state === 'suspended') {
+          await this.audioContext.resume();
+        }
+        this.source = this.audioContext.createMediaStreamSource(this.stream);
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 256;
+        this.source.connect(this.analyser);
+      } catch (acErr) {
+        console.warn('Visualizer AudioContext init fallback:', acErr);
       }
 
-      this.source = this.audioContext.createMediaStreamSource(this.stream);
-      this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 256;
-      this.source.connect(this.analyser);
+      // Determine best audio container supported by browser
+      let mimeType = '';
+      if (typeof MediaRecorder !== 'undefined') {
+        const candidates = [
+          'audio/mp4',               // Native iOS Safari hardware AAC
+          'audio/webm;codecs=opus',  // Chrome / Android Opus
+          'audio/webm',
+          'audio/aac',
+          'audio/ogg'
+        ];
+        for (const cand of candidates) {
+          if (MediaRecorder.isTypeSupported(cand)) {
+            mimeType = cand;
+            break;
+          }
+        }
+      }
 
-      // Direct raw PCM recording via ScriptProcessorNode
-      // Bind to window to prevent iOS WebKit Garbage Collector from prematurely pausing onaudioprocess
-      const bufferSize = 4096;
-      this.processor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
-      window._activeAudioProcessor = this.processor;
-      this.processor.onaudioprocess = (e) => {
-        if (!this.isRecording || this.isPaused) return;
-        const inputData = e.inputBuffer.getChannelData(0);
-        this.pcmDataChunks.push(new Float32Array(inputData));
+      const recorderOptions = mimeType ? { mimeType } : {};
+      this.mediaRecorder = new MediaRecorder(this.stream, recorderOptions);
+      this.recordedMimeType = this.mediaRecorder.mimeType || mimeType || 'audio/mp4';
+
+      this.mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          this.recordedChunks.push(e.data);
+        }
       };
 
-      this.source.connect(this.processor);
-      this.processor.connect(this.audioContext.destination);
-
-      // MediaRecorder for native browser playback
-      let mimeType = 'audio/webm';
-      if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        mimeType = 'audio/mp4';
-      } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-        mimeType = 'audio/webm;codecs=opus';
-      } else if (MediaRecorder.isTypeSupported('audio/aac')) {
-        mimeType = 'audio/aac';
-      }
-
-      try {
-        this.mediaRecorder = new MediaRecorder(this.stream, { mimeType });
-        this.mediaRecorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) this.recordedChunks.push(e.data);
-        };
-        this.mediaRecorder.start(250);
-      } catch (mrErr) {
-        console.warn('MediaRecorder init fallback:', mrErr);
-      }
+      // Start continuous recording without small timeslices (prevents WebKit Bug 215884)
+      this.mediaRecorder.start();
 
       this.isRecording = true;
       this.isPaused = false;
-      this.startTime = Date.now() - this.elapsedTime;
+      this.elapsedTime = 0;
+      this.startTime = Date.now();
 
       this.timerInterval = setInterval(() => {
         this.elapsedTime = Date.now() - this.startTime;
@@ -123,6 +158,7 @@ class AudioRecorder {
       return true;
     } catch (err) {
       console.error('Microphone start error:', err);
+      await this.releaseWakeLock();
       throw err;
     }
   }
@@ -162,27 +198,20 @@ class AudioRecorder {
 
       clearInterval(this.timerInterval);
       cancelAnimationFrame(this.animationId);
+      this.releaseWakeLock();
 
       const duration = this.elapsedTime;
-      const inputSampleRate = this.audioContext ? this.audioContext.sampleRate : 44100;
 
-      // Disconnect processor
-      if (this.processor) {
-        this.processor.disconnect();
-        this.processor = null;
-        window._activeAudioProcessor = null;
-      }
-
-      // Convert raw PCM chunks to standard 16kHz mono WAV Blob (perfect for Gemini)
-      const wavBlob = this.exportWavBlob(this.pcmDataChunks, inputSampleRate, 16000);
-
-      const finishCleanup = (playbackBlob) => {
+      const finishAndCleanup = () => {
         if (this.stream) {
           this.stream.getTracks().forEach(track => track.stop());
         }
         if (this.audioContext && this.audioContext.state !== 'closed') {
-          this.audioContext.close();
+          try { this.audioContext.close(); } catch (e) {}
         }
+
+        const finalMime = (this.mediaRecorder ? this.mediaRecorder.mimeType : '') || this.recordedMimeType || 'audio/mp4';
+        const finalBlob = new Blob(this.recordedChunks, { type: finalMime });
 
         this.isRecording = false;
         this.isPaused = false;
@@ -190,105 +219,30 @@ class AudioRecorder {
         this.drawIdleWave();
         if (this.onStateChange) this.onStateChange('idle');
 
+        console.log(`Audio recording finalized: ${finalBlob.size} bytes, type: ${finalMime}, duration: ${duration}ms`);
+
         resolve({
-          playbackBlob: playbackBlob || wavBlob,
-          wavBlob: wavBlob,
+          audioBlob: finalBlob,
           durationMs: duration,
-          mimeType: 'audio/wav'
+          mimeType: finalMime
         });
       };
 
       if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
         this.mediaRecorder.onstop = () => {
-          const mime = this.mediaRecorder.mimeType || 'audio/mp4';
-          const pBlob = new Blob(this.recordedChunks, { type: mime });
-          finishCleanup(pBlob);
+          finishAndCleanup();
         };
+
         try {
           this.mediaRecorder.stop();
         } catch (e) {
-          finishCleanup(wavBlob);
+          console.warn('MediaRecorder stop warning:', e);
+          finishAndCleanup();
         }
       } else {
-        finishCleanup(wavBlob);
+        finishAndCleanup();
       }
     });
-  }
-
-  // Concatenate Float32 PCM arrays and downsample to 16kHz WAV
-  exportWavBlob(chunks, inputRate, outputRate = 16000) {
-    let totalLength = 0;
-    for (let i = 0; i < chunks.length; i++) {
-      totalLength += chunks[i].length;
-    }
-
-    const merged = new Float32Array(totalLength);
-    let offset = 0;
-    for (let i = 0; i < chunks.length; i++) {
-      merged.set(chunks[i], offset);
-      offset += chunks[i].length;
-    }
-
-    // Downsample to 16kHz
-    let samples;
-    if (inputRate === outputRate) {
-      samples = merged;
-    } else {
-      const ratio = inputRate / outputRate;
-      const newLength = Math.round(merged.length / ratio);
-      samples = new Float32Array(newLength);
-      for (let i = 0; i < newLength; i++) {
-        const idx = Math.floor(i * ratio);
-        samples[i] = merged[idx] || 0;
-      }
-    }
-
-    // Create 16-bit PCM WAV container
-    const buffer = new ArrayBuffer(44 + samples.length * 2);
-    const view = new DataView(buffer);
-
-    function writeStr(pos, s) {
-      for (let i = 0; i < s.length; i++) view.setUint8(pos + i, s.charCodeAt(i));
-    }
-
-    writeStr(0, 'RIFF');
-    view.setUint32(4, 36 + samples.length * 2, true);
-    writeStr(8, 'WAVE');
-    writeStr(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM format
-    view.setUint16(22, 1, true); // Mono channel
-    view.setUint32(24, outputRate, true); // 16000 Hz
-    view.setUint32(28, outputRate * 2, true); // byte rate (16000 * 1 * 2)
-    view.setUint16(32, 2, true); // block align
-    view.setUint16(34, 16, true); // 16-bit
-    writeStr(36, 'data');
-    view.setUint32(40, samples.length * 2, true);
-
-    // Studio-grade Dynamic Range Normalization & Soft Limiter
-    // Boosts quiet voices / whispers so Gemini hears every word clearly
-    let maxPeak = 0;
-    for (let i = 0; i < samples.length; i++) {
-      const abs = Math.abs(samples[i]);
-      if (abs > maxPeak) maxPeak = abs;
-    }
-
-    let gain = 1.0;
-    if (maxPeak > 0.0005) {
-      // Scale so quiet voices become loud & clear, max 8x gain boost
-      gain = Math.min(8.0, 0.92 / maxPeak);
-    }
-
-    let p = 44;
-    for (let i = 0; i < samples.length; i++) {
-      // Soft saturation limiter to prevent digital clipping
-      const boosted = Math.tanh(samples[i] * gain);
-      const s = Math.max(-1, Math.min(1, boosted));
-      view.setInt16(p, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-      p += 2;
-    }
-
-    return new Blob([view], { type: 'audio/wav' });
   }
 
   drawIdleWave() {

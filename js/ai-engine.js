@@ -83,12 +83,16 @@ Lütfen Google AI Studio'dan (aistudio.google.com) yeni bir API anahtarı oluşt
     return { version: 'v1beta', model: 'gemini-3.6-flash' };
   }
 
-  async processAudioRecording(wavBlob, durationMs, chosenModel = null) {
+  async processAudioRecording(audioBlob, durationMs, chosenModel = null) {
     if (!this.apiKey) {
       throw new Error('Gemini API anahtarı bulunamadı!\n4+ konuşmacıyı ses tınısından ayırt etmek ve tüm kelimeleri eksiksiz dökmek için lütfen sağ üstteki Çark simgesinden veya ana ekrandaki "Anahtar Gir" butonundan ücretsiz Google Gemini API anahtarınızı girin.');
     }
 
-    const base64Audio = await this.blobToBase64(wavBlob);
+    const base64Audio = await this.blobToBase64(audioBlob);
+    let cleanMime = (audioBlob.type || 'audio/mp4').split(';')[0].trim();
+    if (!cleanMime || cleanMime === 'application/octet-stream') {
+      cleanMime = 'audio/mp4';
+    }
 
     const prompt = `GÖREV: Bu ses kaydını en üst düzey hassasiyetle incele. Ortamda konuşan HER FARKLI İNSANI akustik ses özelliklerine göre KUSURSUZ ŞEKİLDE AYRIŞTIR ve söylenen her şeyi KELİMESİ KELİMESİNE metne dök.
 
@@ -155,7 +159,7 @@ SADECE aşağıdaki geçerli JSON formatında yanıt ver (asla markdown backtick
             { text: prompt },
             {
               inlineData: {
-                mimeType: 'audio/wav',
+                mimeType: cleanMime,
                 data: base64Audio
               }
             }
