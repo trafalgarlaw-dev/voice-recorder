@@ -1,0 +1,8 @@
+{
+  "appId": "com.hasan.voicerecorder",
+  "appName": "AI Voice Recorder",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "always"
+  }
+}

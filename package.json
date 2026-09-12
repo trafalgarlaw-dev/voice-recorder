@@ -1,0 +1,18 @@
+{
+  "name": "ai-voice-recorder",
+  "version": "1.0.0",
+  "description": "Bu uygulama, Apple'ın en yeni Apple Watch ve iOS 18 güncellemelerinde tanıttığı akıllı ses kaydı, konuşmacı ayrımı (speaker diarization), duygu/ton analizi ve toplantı kaydı üzerinden yapay zeka ile soru-cevap yapabilme özelliklerini doğrudan iPhone'unuzda (ve tarayıcınızda) kullanabilmeniz için geliştirilmiştir.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rm -rf www && mkdir -p www && cp -R index.html css js icons manifest.json www/"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor/cli": "^6.2.2",
+    "@capacitor/core": "^6.2.2",
+    "@capacitor/ios": "^6.2.2"
+  }
+}

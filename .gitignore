@@ -9,3 +9,10 @@ start_tunnel.sh
 
 # OS
 .DS_Store
+
+# Node & Build
+node_modules/
+package-lock.json
+www/
+ios/App/build/
+ios/App/Pods/
