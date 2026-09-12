@@ -306,6 +306,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       await processAndSaveAudio(file, durationMs, file.type || 'audio/mp4', file.name);
       fileUploadInput.value = '';
     };
+    tempAudio.onerror = async () => {
+      await processAndSaveAudio(file, 60000, file.type || 'audio/mp4', file.name);
+      fileUploadInput.value = '';
+    };
   });
 
   // Process & Save
