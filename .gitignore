@@ -1,0 +1,11 @@
+# Local binaries & certs
+cloudflared
+*.pem
+openssl.cnf
+
+# Scratch python patches
+*.py
+start_tunnel.sh
+
+# OS
+.DS_Store

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Ses & Toplantı Asistanı</title>
+  <meta name="description" content="Apple Watch ve iOS 18 tarzı akıllı ortam ses kaydı, çoklu konuşmacı ayrımı ve yapay zeka analiz asistanı">
+  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ses Asistanı">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+  <!-- Toast Notification -->
+  <div id="toastMsg" class="toast-msg">
+    <span id="toastIcon">✨</span>
+    <span id="toastText">İşlem tamamlandı</span>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+          <line x1="12" y1="19" x2="12" y2="23"></line>
+          <line x1="8" y1="23" x2="16" y2="23"></line>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">Ses Asistanı</div>
+      </div>
+      <span class="brand-badge">Apple Intelligence</span>
+    </div>
+
+    <div class="header-actions">
+      <button id="settingsBtn" class="icon-btn" title="Ayarlar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main App Screens -->
+  <main class="app-container">
+    
+    <!-- SCREEN 1: RECORD SCREEN -->
+    <section id="screenRecord" class="screen active">
+      <div class="record-card">
+
+        <!-- API Key Status Banner -->
+        <div id="apiKeyNoticeBanner" style="width: 100%; background: rgba(10, 132, 255, 0.12); border: 1px solid rgba(10, 132, 255, 0.3); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; font-size: 13px; text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div>
+            <div style="font-weight: 600; color: #fff;">🔑 4+ Konuşmacı & Eksiksiz Döküm</div>
+            <div style="color: var(--text-secondary); font-size: 11px; margin-top: 2px;">Tüm kelimeleri atlamadan dökmek için Gemini API anahtarı ekleyin.</div>
+          </div>
+          <button id="quickOpenSettingsBtn" style="background: var(--accent-blue); color: #fff; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">Anahtar Gir</button>
+        </div>
+
+        <div class="record-badge" id="recordingStatusBadge">
+          <span class="pulsing-dot" style="display: none;"></span>
+          <span id="recordingStatusText">Kayda Hazır</span>
+        </div>
+
+        <div class="record-timer" id="timerDisplay">00:00.00</div>
+        <div class="record-subtitle" id="recordSubtitle">
+          Ortamdaki tüm konuşmaları kaydetmek için dokunun. 1'den fazla kişi (2, 3, 4 veya daha fazla) otomatik ayrıştırılacaktır.
+        </div>
+
+        <!-- Realtime Waveform Canvas -->
+        
+
+
+        <div class="visualizer-container">
+          <canvas id="visualizerCanvas"></canvas>
+          <div class="visualizer-placeholder" id="visualizerPlaceholder">Ses dalgası bekleniyor...</div>
+        </div>
+
+        <!-- Live Subtitle Feed while speaking -->
+        
+
+        <!-- Primary Controls -->
+        <div class="controls-row">
+          <button id="pauseResumeBtn" class="sub-ctrl-btn" title="Duraklat" disabled>
+            <svg id="pauseIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16" rx="1"></rect>
+              <rect x="14" y="4" width="4" height="16" rx="1"></rect>
+            </svg>
+            <svg id="resumeIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          </button>
+
+          <button id="recordBtnMain" class="record-btn-main" title="Kayıt Başlat / Durdur">
+            <div class="record-btn-inner" id="recordBtnInner"></div>
+          </button>
+
+          <button id="cancelRecordBtn" class="sub-ctrl-btn" title="İptal Et" disabled>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Audio Upload Option -->
+        <label class="upload-option" for="fileUploadInput">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <span>iPhone Sesli Notu veya Dosya Yükle (.m4a, .mp3)</span>
+          <input type="file" id="fileUploadInput" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg" style="display: none;">
+        </label>
+
+        <!-- Feature Pills -->
+        <div class="feature-pills">
+          <div class="feature-pill">👥 Çoklu Konuşmacı Ayrımı</div>
+          <div class="feature-pill">💡 Gerçek Metin Dökümü</div>
+          <div class="feature-pill">⏱️ Zaman Damgaları</div>
+          <div class="feature-pill">🧠 Kayıt Üzerinde AI Sohbet</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 2: RECORDINGS LIST -->
+    <section id="screenList" class="screen">
+      <div class="list-header">
+        <h2 class="list-title">Kayıtlarım</h2>
+        <span id="recordingCountBadge" class="brand-badge">0 Kayıt</span>
+      </div>
+
+      <div id="recordingsListContainer" class="recordings-list">
+        <!-- Dynamic cards inserted here -->
+      </div>
+    </section>
+
+    <!-- SCREEN 3: DETAIL & INTELLIGENCE ANALYSIS -->
+    <section id="screenDetail" class="screen">
+      <div class="detail-header">
+        <button id="backToListBtn" class="back-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span>Kayıtlar</span>
+        </button>
+        <div style="display: flex; gap: 8px;">
+          <button id="reanalyzeBtn" class="icon-btn" title="Farklı Modelle Yeniden Çöz" style="width: 32px; height: 32px; color: var(--accent-blue);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+          </button>
+          <button id="deleteMeetingBtn" class="icon-btn" title="Kaydı Sil" style="width: 32px; height: 32px; color: var(--accent-red);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mini Audio Player -->
+      <div class="player-dock">
+        <div class="player-title-row">
+          <h3 id="playerMeetingTitle" class="player-title">Kayıt Başlığı</h3>
+          <button id="speedToggleBtn" class="speed-btn">1.0x</button>
+        </div>
+
+        <input type="range" id="audioScrubber" class="player-scrubber" min="0" max="100" value="0">
+        
+        <div class="player-time-row">
+          <span id="currentTimeDisplay">00:00</span>
+          <span id="totalDurationDisplay">00:00</span>
+        </div>
+
+        <div class="player-controls">
+          <button id="seekBack15Btn" class="seek-btn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 4v6h6"></path>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+            </svg>
+            <span>-15s</span>
+          </button>
+
+          <button id="playPauseAudioBtn" class="play-pause-btn">
+            <svg id="playIcon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <svg id="pauseIconMini" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+              <rect x="6" y="4" width="4" height="16" rx="1"></rect>
+              <rect x="14" y="4" width="4" height="16" rx="1"></rect>
+            </svg>
+          </button>
+
+          <button id="seekForward15Btn" class="seek-btn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6"></path>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            <span>+15s</span>
+          </button>
+        </div>
+
+        <!-- Native Audio Element -->
+        <audio id="nativeAudioPlayer"></audio>
+      </div>
+
+      <!-- Segmented Tab Navigation -->
+      <div class="segment-bar">
+        <button class="segment-btn active" data-tab="tabTranscript">📝 Konuşma Dökümü</button>
+        <button class="segment-btn" data-tab="tabSummary">💡 Genel Özet</button>
+        <button class="segment-btn" data-tab="tabChat">💬 AI ile Soru Sor</button>
+        <button class="segment-btn" data-tab="tabStats">📊 Konuşmacılar</button>
+      </div>
+
+      <!-- TAB 1: TRANSCRIPT FEED -->
+      <div id="tabTranscript" class="tab-pane active">
+        <div class="transcript-search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="transcriptSearchInput" placeholder="Kayıt içinde kelime ara...">
+        </div>
+        <div id="transcriptFeed" class="transcript-list">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- TAB 2: SUMMARY & ACTIONS -->
+      <div id="tabSummary" class="tab-pane">
+        <div class="summary-card">
+          <div class="summary-heading">
+            <span>📝</span>
+            <span>Konuşma Özeti</span>
+          </div>
+          <p id="summaryText" class="summary-body"></p>
+        </div>
+
+        <div class="summary-card" id="decisionsCard" style="display: none;">
+          <div class="summary-heading">
+            <span>🎯</span>
+            <span>Öne Çıkan Kararlar & Konular</span>
+          </div>
+          <div id="decisionsList" class="summary-body"></div>
+        </div>
+
+        <div class="summary-card" id="actionsCard" style="display: none;">
+          <div class="summary-heading">
+            <span>📋</span>
+            <span>Görevler & Aksiyonlar</span>
+          </div>
+          <div id="actionItemsList" class="action-items-list"></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: ASK AI / CHAT -->
+      <div id="tabChat" class="tab-pane">
+        <div class="chat-container">
+          <!-- Universal Quick Prompt Chips -->
+          <div class="chat-quick-prompts">
+            <button class="prompt-chip" data-prompt="Görüşmeyi ana hatlarıyla özetle.">🎙️ Konuşmayı özetle</button>
+            <button class="prompt-chip" data-prompt="Kayıttaki her bir konuşmacı ne söyledi?">👥 Kim ne söyledi?</button>
+            <button class="prompt-chip" data-prompt="Konuşmada geçen önemli konular veya kararlar neler?">🎯 Önemli noktalar neler?</button>
+            <button class="prompt-chip" data-prompt="Bu kayıtta yapılması gereken bir görev veya aksiyon var mı?">📋 Görev var mı?</button>
+          </div>
+
+          <div id="chatMessages" class="chat-messages"></div>
+
+          <form id="chatForm" class="chat-input-row">
+            <input type="text" id="chatInput" placeholder="Kayıt hakkında dilediğinizi sorun..." autocomplete="off">
+            <button type="submit" class="send-btn" title="Gönder">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- TAB 4: SPEAKER STATS -->
+      <div id="tabStats" class="tab-pane">
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">Toplam Süre</span>
+            <span id="statDuration" class="stat-value">00:00</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Konuşmacı Sayısı</span>
+            <span id="statSpeakers" class="stat-value">0 Kişi</span>
+          </div>
+        </div>
+
+        <div class="summary-card" style="margin-top: 12px;">
+          <div class="summary-heading">
+            <span>🗣️</span>
+            <span>Konuşmacı Dağılımı (Kişi İsimlerini Değiştirebilirsiniz)</span>
+          </div>
+          <div id="speakerShareList"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation Tab Bar -->
+  <nav class="tab-bar">
+    <button class="tab-item active" data-screen="screenRecord">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9"></circle>
+        <circle cx="12" cy="12" r="4" fill="#000"></circle>
+      </svg>
+      <span>Kayıt</span>
+    </button>
+    <button class="tab-item" data-screen="screenList">
+      <svg viewBox="0 0 24 24">
+        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"></path>
+      </svg>
+      <span>Kayıtlar</span>
+    </button>
+  </nav>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title">Yapay Zeka & Konuşmacı Ayarları</h3>
+
+      <div class="form-group">
+        <label for="geminiApiKeyInput">Google Gemini API Anahtarı</label>
+        <input type="password" id="geminiApiKeyInput" class="form-input" placeholder="AIzaSy...">
+        <span class="form-help">
+          Google AI Studio'dan (aistudio.google.com) saniyeler içinde ücretsiz alabilirsiniz. API anahtarı girdiğinizde 4+ kişilik ortamlarda ses tınılarını (timbre) derinlemesine ayrıştırır.
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label for="modelSelect">Yapay Zeka Modeli</label>
+        <select id="modelSelect" class="form-select">
+          <option value="gemini-3.6-flash" selected>Gemini 3.6 Flash (En Güncel, Önerilen)</option>
+          <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+          <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+        </select>
+      </div>
+
+      <button id="saveSettingsBtn" class="btn-primary">Kaydet & Kapat</button>
+      <button id="closeSettingsBtn" class="btn-secondary">Kapat</button>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/audio-recorder.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/ai-engine.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- Reanalyze Modal -->
+  <div id="reanalyzeModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title">Kaydı Yeniden Çözümle</h3>
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 18px;">
+        Ses kaydınız cihazınızda güvenle saklanmaktadır. İstediğiniz Gemini modelini ve kişi sayısını seçerek dilediğiniz an yeniden çözdürebilirsiniz.
+      </p>
+
+      <div class="form-group">
+        <label for="reanalyzeModelSelect">Kullanılacak Yapay Zeka Modeli</label>
+        <select id="reanalyzeModelSelect" class="form-select">
+          <option value="gemini-2.0-flash" selected>Gemini 2.0 Flash (En Dengeli, Düşük Yoğunluk - Önerilen)</option>
+          <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite (Aşırı Hızlı, Yoğunluk Yaşamaz)</option>
+          <option value="gemini-3.6-flash">Gemini 3.6 Flash (En Yeni Amiral Gemisi Model)</option>
+          <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+          <option value="gemini-1.5-pro">Gemini 1.5 Pro (Gelişmiş Mantıksal Çıkarım)</option>
+        </select>
+      </div>
+
+
+
+      <button id="startReanalyzeBtn" class="btn-primary">Seçilen Modelle Şimdi Çöz</button>
+      <button id="closeReanalyzeBtn" class="btn-secondary">İptal</button>
+    </div>
+  </div>
+
+</body>
+</html>
